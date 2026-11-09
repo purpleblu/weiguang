@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>微光 · 第一个 p5.js 实验</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #080d17; color: #e9e8e1; font: 15px/1.7 system-ui, sans-serif; }
+    main { max-width: 1080px; margin: auto; padding: 36px 24px; }
+    .eyebrow { color: #98b7be; font-size: 12px; letter-spacing: .16em; }
+    h1 { margin: 8px 0; font-size: clamp(32px, 5vw, 48px); font-weight: 500; letter-spacing: .12em; }
+    p { color: #a8b2c3; margin: 0 0 24px; }
+    #stage { width: 100%; height: clamp(280px, 58vh, 600px); border: 1px solid #263042; border-radius: 8px; overflow: hidden; touch-action: none; background: #080d17; }
+    canvas { display: block; }
+    footer { display: flex; gap: 16px; align-items: center; justify-content: space-between; margin-top: 18px; flex-wrap: wrap; }
+    footer span { color: #8c9bad; font-size: 13px; }
+    button { font: inherit; color: #c5e9e3; border: 1px solid #385557; border-radius: 5px; background: #122325; padding: 7px 18px; cursor: pointer; }
+    button:hover { background: #203b3d; }
+    button[aria-pressed="true"] { background: #31504e; border-color: #8bd8ce; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    button:focus-visible { outline: 2px solid #ffe1aa; outline-offset: 4px; }
+    .controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding: 20px 0 4px; }
+    label { color: #b8c9ce; font-size: 13px; }
+    label span { display: flex; justify-content: space-between; gap: 8px; }
+    output { color: #e9cfaa; font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; margin: 12px 0 0; accent-color: #8bd8ce; cursor: pointer; }
+    input:focus-visible { outline: 2px solid #ffe1aa; outline-offset: 4px; }
+    .memory-input { display: block; margin: 24px 0 16px; }
+    .memory-input input { display: block; width: 100%; margin-top: 8px; padding: 12px 14px; border: 1px solid #385557; border-radius: 6px; color: #eee4d3; background: #101b27; font: inherit; }
+    .hint { display: block; color: #8c9bad; font-size: 12px; margin-top: 6px; }
+    button:disabled { opacity: .4; cursor: default; }
+    #rewind { touch-action: none; user-select: none; -webkit-user-select: none; }
+    #rewind[aria-pressed="true"] { color: #ffe1c4; border-color: #d5b48f; background: #49382d; }
+    .time-info { color: #9faab8; font-size: 12px; margin-top: 12px; font-variant-numeric: tabular-nums; }
+    @media (max-width: 600px) { .controls { grid-template-columns: 1fr; gap: 12px; } main { padding: 24px 18px; } }
+    #status { margin-top: 12px; color: #e8bc9e; }
+    /* 仅切到里世界才启用这组样式，表世界的颜色、字形和布局不变。 */
+    body.inner-world { background: #030103; color: #b49fa0; }
+    body.inner-world h1 { color: #c42030; font-family: STXinwei, "华文新魏", STXingkai, "华文行楷", serif; font-weight: 700; letter-spacing: .22em; transform: skew(-7deg) scaleY(1.12); transform-origin: left center; text-shadow: 2px 1px #3e060e, -1px -1px 10px #640f20; }
+    body.inner-world #stage { background: #030103; border-color: #351019; }
+    body.inner-world p, body.inner-world .hint, body.inner-world footer span { color: #97777e; }
+    body.inner-world .eyebrow { color: #ad4b5d; }
+    body.inner-world button, body.inner-world .memory-input input { background: #14070d; border-color: #51202b; color: #c29ba4; }
+    body.inner-world button:hover, body.inner-world button[aria-pressed="true"] { background: #2e0e19; border-color: #813244; }
+    body.inner-world input[type="range"] { accent-color: #a13247; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">创意编码实验 / 001</div>
+    <h1>微光</h1>
+    <p id="world-description">让雨随风，让字碎成光，也让时间沿来路退回。</p>
+    <div id="stage" aria-label="互动彩雾画布：移动留雾，点按后文字柔和淡入，完全显现约两秒后逐字散开。按住搅动，T 倒流，R 开关雨，S 截图。"></div>
+    <div class="controls" aria-label="画面调节">
+      <label for="life"><span>停留时间 <output id="life-value" for="life">10 秒</output></span><input id="life" type="range" min="2" max="14" step="1" value="10"></label>
+      <label for="hueSpeed"><span>变色速度 <output id="hueSpeed-value" for="hueSpeed">18° / 秒</output></span><input id="hueSpeed" type="range" min="0" max="60" step="2" value="18"></label>
+      <label for="ink"><span>墨感扩散 <output id="ink-value" for="ink">90%</output></span><input id="ink" type="range" min="0" max="100" step="5" value="90"></label>
+    </div>
+    <label class="memory-input" for="memory-text">藏进雾里的话
+      <input id="memory-text" type="text" maxlength="80" value="窗外的雨把夜色泡得很软，我陷在被窝里氤氲着潮湿的心事。" placeholder="写一句你想藏起来的话……" aria-describedby="memory-hint">
+      <span class="hint" id="memory-hint">最多 80 字。点按后文字缓缓浮现，完全显现约 2 秒后逐字散开；倒流松手后定格，再点一次重新开始。</span>
+    </label>
+    <footer>
+      <span id="pointer-hint">移动留雾 · 点按显字 · 按住搅动</span>
+      <div class="actions">
+        <button id="show-wind" type="button" aria-pressed="false">看见风向</button>
+        <button id="change-wind" type="button">换一阵风</button>
+        <button id="toggle-rain" type="button" aria-pressed="false">下雨 · R</button>
+        <button id="rewind" type="button" aria-pressed="false" aria-describedby="time-state" disabled>倒流 · 按住 T</button>
+        <button id="screenshot" type="button">截图 · S</button>
+        <button id="clear" type="button">重新开始</button>
+      </div>
+    </footer>
+    <div class="time-info" id="time-state">正在积累记忆 · 最多可倒流 8 秒</div>
+    <div class="hint" id="shortcut-hint">R：开关雨　·　按住 T：倒流，松开定格文字　·　S：保存画布截图。编辑输入框时不触发快捷键。倒流按钮获得焦点后也可按住空格或回车。</div>
+    <div id="status" role="status"></div>
+  </main>
+  <script src="vendor/p5.min.js" onerror="document.getElementById('status').textContent='未能加载绘图库，请保留 vendor 文件夹后重新打开。'"></script>
+  <script src="hidden-world.js"></script>
+  <script src="memory.js"></script>
+  <script src="weather.js"></script>
+  <script src="effects.js"></script>
+  <script src="timeline.js"></script>
+  <script src="sketch.js"></script>
+</body>
+</html>
